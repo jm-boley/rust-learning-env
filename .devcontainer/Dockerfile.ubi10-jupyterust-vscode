@@ -1,0 +1,78 @@
+FROM registry.access.redhat.com/ubi10/ubi:latest
+
+# Install system dependencies as root
+RUN dnf install -y \
+    gcc-c++ \
+    make \
+    cmake \
+    lld \
+    pkgconf \
+    openssl-devel \
+    libstdc++-devel \
+    zlib-devel \
+    libcurl-devel \
+    git \
+    curl \
+    unzip \
+    zip \
+    jq \
+    procps-ng \
+    vim \
+    bash-completion \
+    file \
+    findutils \
+    which \
+    shadow-utils \
+    python3 \
+    python3-pip \
+    python3-devel \
+    && dnf clean all
+
+# Non-root user (VS Code convention)
+ARG USERNAME=vscode
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+RUN dnf install -y sudo \
+    && dnf clean all \
+    && rm -rf /var/cache/dnf /tmp/* \
+    && groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && mkdir -p /etc/sudoers.d \
+    && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
+
+USER $USERNAME
+WORKDIR /home/$USERNAME
+
+# Install rustup + stable toolchain + common components
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable \
+    && source "$HOME/.cargo/env" \
+    && rustup component add rust-analyzer rustfmt clippy rust-src \
+    && rm -rf ~/.rustup/toolchains/*/share/doc/*
+
+# Explicit PATH
+ENV PATH="/home/vscode/.cargo/bin:${PATH}"
+
+# Install Jupyter + Rust kernel (as vscode user)
+RUN python3 -m pip install --user --no-cache-dir jupyter \
+    && cargo install --locked evcxr_jupyter \
+    && ~/.cargo/bin/evcxr_jupyter --install \
+    && echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+
+# Set working dir
+WORKDIR /workspace
+
+# === Default Workspace Setup (keeps evcxr quiet) ===
+#RUN mkdir -p /workspace \
+#    && cd /workspace \
+#    && cargo init --name rust-notebook-workspace \
+#    && echo '[dependencies]' >> Cargo.toml \
+#    && echo '# Add your crates here, e.g.:' >> Cargo.toml \
+#    && echo '# polars = { version = "0.45", features = ["lazy"] }' >> Cargo.toml \
+#    && cargo update  # pre-fetch index for faster first builds
+
+# Debug
+#RUN rustc --version && cargo --version && python3 -m jupyter kernelspec list
+
+CMD ["sleep", "infinity"]

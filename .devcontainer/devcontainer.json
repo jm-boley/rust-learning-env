@@ -1,0 +1,19 @@
+{
+  "name": "Rust + Jupyter Dev Container",
+  "build": {
+    "dockerfile": "Dockerfile.ubi10-jupyterust-vscode"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "ms-toolsai.jupyter",
+        "ms-toolsai.jupyter-renderers"
+      ]
+    }
+  },
+  "remoteUser": "vscode",
+  // "workspaceFolder": "/workspace",
+  "postCreateCommand": "bash .devcontainer/setup-rust-workspace.sh"
+  // "features": {}  // add any official devcontainer features if desired later
+}
